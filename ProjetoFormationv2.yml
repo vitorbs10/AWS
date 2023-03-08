@@ -1,0 +1,114 @@
+Resources:
+
+#CRIANDO O MEU VPC
+ GiroVPC:
+  Type: AWS::EC2::VPC
+  Properties:
+   CidrBlock: 10.10.0.0/16
+   EnableDnsSupport: true
+   EnableDnsHostnames: true
+   Tags: 
+   - Key: Name
+     Value:  !Sub ${AWS::StackName}-VPC 
+
+#CRIANDO O MEU INTERNET GATEWAY
+ NewInternetGateway:
+  Type: AWS::EC2::InternetGateway
+  DependsOn: GiroVPC
+
+#CONECTANDO O INTERNET GATEAWAY COM O VPC
+ NovoAttachGateway:
+  Type: AWS::EC2::VPCGatewayAttachment
+  Properties:
+   VpcId: !Ref GiroVPC
+   InternetGatewayId: !Ref NewInternetGateway
+
+#CRIANDO A SUBNET PÚBLICA
+ NovaSubnet1: 
+  Type: AWS::EC2::Subnet
+  Properties:
+   CidrBlock: 10.10.1.0/24
+   VpcId: !Ref GiroVPC
+   AvailabilityZone: !Select [0, !GetAZs '']
+   Tags:
+   - Key: Name
+     Value: !Sub ${AWS::StackName}-Publica
+
+#CRIANDO A SUBNET PRIVADA
+ NovaSubnet2: 
+  Type: AWS::EC2::Subnet
+  Properties:
+   CidrBlock: 10.10.2.0/24
+   VpcId: !Ref GiroVPC
+   AvailabilityZone: !Select [0, !GetAZs '']
+   Tags:
+   - Key: Name
+     Value: !Sub ${AWS::StackName}-Privada
+
+#CRIANDO O ELASTIC IP PARA O NATGATEWAY
+ NatGatewayElasticIP:
+  Type: AWS::EC2::EIP
+  Properties:
+   Domain: GiroVPC
+
+#CRIANDO O NATGATEWAY
+ NovoNatGateway:
+  Type: AWS::EC2::NatGateway
+  Properties:
+   AllocationId: !GetAtt  NatGatewayElasticIP.AllocationId
+   SubnetId: !Ref  NovaSubnet1
+   Tags: 
+     - Key: Name
+       Value: !Join ['', ["NAT-", !Ref "AWS::StackName"]]
+
+#CRIANDO A ROUTE TABLE PRIVADA
+ PrivadaRouteTable:
+  Type: AWS::EC2::RouteTable
+  Properties:
+   VpcId: !Ref GiroVPC
+   Tags:
+    - Key: Name
+      Value: PRIVADA
+
+#CRIANDO A ROUTE PRIVADA CONECTANDO NA ROUTE TABLE PRIVADA E NO NAT GATEWAY
+ PrivadaRoute:
+  Type: AWS::EC2::Route
+  Properties:
+   RouteTableId: !Ref PrivadaRouteTable
+   DestinationCidrBlock: 0.0.0.0/0
+   NatGatewayId: !Ref NovoNatGateway
+
+#CRIANDO A ROUTE TABLE PUBLICA
+ PublicaRouteTable:
+  Type: AWS::EC2::RouteTable
+  Properties:
+   VpcId: !Ref GiroVPC
+
+
+#CRIANDO A ROUTE PUBLICA E CONECTANDO NA ROUTE TABLE PUBLICA E NO INTERNET GATEWAY
+ PublicaRoute:
+  Type: AWS::EC2::Route
+  DependsOn: NovoAttachGateway
+  Properties:
+   RouteTableId: !Ref PublicaRouteTable
+   DestinationCidrBlock: 0.0.0.0/0
+   GatewayId: !Ref NewInternetGateway
+   
+
+#ASSOCIANDO A TABELA DE ROTAS COM A SUBNET PUBLICA
+ PublicaRouteTableAssociation:
+  Type: AWS::EC2::SubnetRouteTableAssociation
+  Properties:
+   RouteTableId: !Ref PublicaRouteTable
+   SubnetId: !Ref NovaSubnet1
+
+ #ASSOCIANDO A TABELA DE ROTAS COM A SUBNET PRIVADA
+ PrivadaRouteTableAssociation:
+  Type: AWS::EC2::SubnetRouteTableAssociation
+  Properties:
+   RouteTableId: !Ref PrivadaRouteTable
+   SubnetId: !Ref NovaSubnet2
+
+
+
+  
