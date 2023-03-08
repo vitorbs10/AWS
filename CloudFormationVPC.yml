@@ -1,0 +1,44 @@
+Resources:
+
+ GiroVPC:
+  Type: AWS::EC2::VPC
+  Properties:
+   CidrBlock: 10.10.0.0/16
+   EnableDnsSupport: true
+   EnableDnsHostnames: true
+   Tags: 
+   - Key: Name
+     Value:  !Sub ${AWS::StackName}-VPC 
+
+ NewInternetGateway:
+  Type: AWS::EC2::InternetGateway
+  DependsOn: GiroVPC
+
+ NovoAttachGateway:
+  Type: AWS::EC2::VPCGatewayAttachment
+  Properties:
+   VpcId: !Ref GiroVPC
+   InternetGatewayId: !Ref  NewInternetGateway
+
+ NovaSubnet1: 
+  Type: AWS::EC2::Subnet
+  Properties:
+   CidrBlock: 10.10.1.0/24
+   VpcId: !Ref GiroVPC
+   AvailabilityZone: !Select [0, !GetAZs '']
+   Tags:
+   - Key: Name
+     Value: !Sub ${AWS::StackName}-Publica
+
+ NovaSubnet2: 
+  Type: AWS::EC2::Subnet
+  Properties:
+   CidrBlock: 10.10.2.0/24
+   VpcId: !Ref GiroVPC
+   AvailabilityZone: !Select [0, !GetAZs '']
+   Tags:
+   - Key: Name
+     Value: !Sub ${AWS::StackName}-Privada
+
+
+  
